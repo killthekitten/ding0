@@ -234,11 +234,16 @@ class ResultsDingo:
 
     def calculate_global_stats(self):
 
+        mvgd_stats = self.calculate_mvgd_stats()
         global_stats = {
-            'Valid MV grid districts': "{0} out of {1}".format(
-                len(self.mv_grid_districs),
-                len(self.mv_grid_districts_including_invalid)
-            )
+            'Valid MV grid districts': "{0} out of {1:.0f}".format(
+                len(mvgd_stats),
+                mvgd_stats.iloc[len(mvgd_stats) - 1].name#.index.get_level_values('grid_id')
+            ),
+            'Total LV stations': "{:.0f}".format(mvgd_stats["LV Station"].sum()),
+            'Kilometer of overhead lines: ': '{:.0f}'.format(mvgd_stats['km_line'].sum()),
+            'Kilometer of cables: ': '{:.0f}'.format(mvgd_stats['km_cable'].sum()),
+            'Kilometer of overhead lines and cables: ': '{:.0f}'.format(mvgd_stats[['km_line', 'km_cable']].sum().sum()),
         }
 
         return global_stats
@@ -270,23 +275,42 @@ class ResultsDingo:
 
         # cable and line kilometer distribution
         f, axarr = plt.subplots(2, sharex=True)
-        stats.hist(column=['km_cable'], bins=5, alpha=0.5, ax=axarr[0])
-        stats.hist(column=['km_line'], bins=5, alpha=0.5, ax=axarr[1])
+        stats.hist(column=['km_cable'], bins=50, alpha=0.5, ax=axarr[0])
+        stats.hist(column=['km_line'], bins=25, alpha=0.5, ax=axarr[1])
 
         plt.savefig(os.path.join(self.base_path, 'plots',
                                  'Histogram_cable_line_length.pdf'))
 
+        # amount of rings
+        stats.hist(column=['rings'], bins=11, alpha=0.5)
+        plt.ylabel('Count')
+        plt.xlabel('Number of rings per MV grid district')
+        plt.title('')
+        plt.savefig(os.path.join(self.base_path, 'plots',
+                                 'Histogram_amount_of_rings_per_MVGD.pdf'))
+
+        # amount of LV stations
+        stats.hist(column=['LV Station'], bins=50, alpha=0.5)
+        plt.ylabel('Count')
+        plt.xlabel('Number of LV substations per MV grid district')
+        plt.title('')
+        plt.savefig(os.path.join(self.base_path, 'plots',
+                                 'Histogram_lv_stations_per_MVGD.pdf'))
+
         # Generation capacity vs. peak load
         sns.set_context("paper", font_scale=1.1)
         sns.set_style("ticks")
-
         sns.lmplot('generation_capacity', 'peak_load',
                    data=stats,
                    fit_reg=False,
                    hue='Voltage level',
                    scatter_kws={"marker": "D",
-                                "s": 100},
+                                "s": 10},
                    aspect=2)
+        xlimits = plt.xlim()
+        plt.xlim(0, xlimits[1])
+        ylimits = plt.ylim()
+        plt.ylim(0, ylimits[1])
         plt.title('Peak load vs. generation capcity')
         plt.xlabel('Generation capacity in MW')
         plt.ylabel('Peak load in MW')
@@ -294,17 +318,44 @@ class ResultsDingo:
         plt.savefig(os.path.join(self.base_path, 'plots',
                                  'Scatter_generation_load.pdf'))
 
+        # Same figure as above but generation axis limited
+        xlimits = plt.xlim()
+        plt.xlim(0, 200)
+        ylimits = plt.ylim()
+        plt.ylim(0, ylimits[1])
+        plt.title('Peak load vs. generation capcity')
+        plt.xlabel('Generation capacity in MW')
+        plt.ylabel('Peak load in MW')
+
+        plt.savefig(os.path.join(self.base_path, 'plots',
+                                 'Scatter_generation_load_Generation-limit_2MW.pdf'))
         # Cable vs. line kilometer scatter
         sns.lmplot('km_cable', 'km_line',
                    data=stats,
                    fit_reg=False,
                    hue='Voltage level',
                    scatter_kws={"marker": "D",
-                                "s": 100},
+                                "s": 10},
                    aspect=2)
+        xlimits = plt.xlim()
+        plt.xlim(0, xlimits[1])
+        ylimits = plt.ylim()
+        plt.ylim(0, ylimits[1])
         plt.title('Kilometer of cable/line')
         plt.xlabel('Km of cables')
         plt.ylabel('Km of overhead lines')
 
         plt.savefig(os.path.join(self.base_path, 'plots',
                                  'Scatter_cables_lines.pdf'))
+
+        # Same figure as above, but limited to 1000km of overhead line && 150 km of cables
+        xlimits = plt.xlim()
+        plt.xlim(0, 150)
+        ylimits = plt.ylim()
+        plt.ylim(0, 1000)
+        plt.title('Kilometer of cable/line')
+        plt.xlabel('Km of cables')
+        plt.ylabel('Km of overhead lines')
+
+        plt.savefig(os.path.join(self.base_path, 'plots',
+                                 'Scatter_cables_lines_limited_<1000kmOL_<150kmcable.pdf'))

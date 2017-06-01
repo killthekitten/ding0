@@ -23,8 +23,8 @@ cfg_dingo.load_config('config_calc.cfg')
 cfg_dingo.load_config('config_files.cfg')
 cfg_dingo.load_config('config_misc.cfg')
 
-base_path = '/home/guido/rli_local/dingo_results/'
-
+#base_path = '/home/guido/rli_local/dingo_results/'
+base_path = '/home/guido/mnt/srv01/04_Projekte/140_open_eGo/04-Projektinhalte/AP2/AP2.6_Generierung_synthetischer_Netze/dingo_results/'
 
 def create_results_dirs(base_path):
     """Create base path dir and subdirectories
@@ -88,7 +88,7 @@ def run_dingo(mv_grid_district, base_path):
     nd.reinforce_grid()
 
     # nd.export_mv_grid(conn, mv_grid_districts)
-    nd.export_mv_grid_new(conn, mv_grid_district)
+    # nd.export_mv_grid_new(conn, mv_grid_district)
 
     pickle.dump(nd,
                 open(os.path.join(base_path, 'results',
@@ -109,6 +109,36 @@ def run_dingo(mv_grid_district, base_path):
     return msg
 
 
+def check_dingo_for_errors(mv_grid_district, base_path):
+    """
+    Perform dingo run on given grid districts until validate
+
+    Parameters
+    ----------
+    mv_grid_districs : list
+    Integers describing grid districts
+    """
+
+    # create directories for local results data
+    if not os.path.exists(base_path):
+        create_results_dirs(base_path)
+
+    # instantiate dingo  network object
+    nd = NetworkDingo(name='network')
+
+    nd.import_pf_config()
+
+    nd.import_mv_grid_districts(conn, mv_grid_district)
+
+    nd.import_generators(conn)
+
+    nd.mv_parametrize_grid()
+
+    msg = nd.validate_grid_districts()
+
+    return msg
+
+
 if __name__ == '__main__':
 
     start = time.time()
@@ -117,8 +147,8 @@ if __name__ == '__main__':
     conn = db.connection(section='oedb')
 
     mvgd_exclude = []
-    mvgd_first = 5
-    mvgd_last = 25
+    mvgd_first = 1
+    mvgd_last = 3609
 
     mv_grid_districts = [mv for mv in list(range(mvgd_first, mvgd_last)) if
                              mv not in mvgd_exclude]
@@ -126,8 +156,10 @@ if __name__ == '__main__':
     corrupt_grid_districts = pd.DataFrame(columns=['id', 'message'])
 
     for mv_grid_district in mv_grid_districts:
+        print('Now running MVGD {}'.format(mv_grid_district))
         try:
-            msg = run_dingo([mv_grid_district], base_path)
+            #msg = run_dingo([mv_grid_district], base_path)
+            msg = check_dingo_for_errors([mv_grid_district], base_path)
             if msg:
                 corrupt_grid_districts = corrupt_grid_districts.append(
                     pd.Series({'id': mv_grid_district,
